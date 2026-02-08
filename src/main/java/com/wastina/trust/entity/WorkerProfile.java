@@ -20,7 +20,13 @@ public class WorkerProfile {
     @JoinColumn(name = "user_id")
     private User user;
 
-    // Profession is now in User entity
+    @ManyToOne
+    @JoinColumn(name = "profession_id")
+    private Profession profession;
+
+    @ManyToOne
+    @JoinColumn(name = "location_id")
+    private Location location;
 
     private Integer trustScore = 0;
 

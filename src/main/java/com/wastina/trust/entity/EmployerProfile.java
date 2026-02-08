@@ -22,7 +22,9 @@ public class EmployerProfile {
 
     private String companyName;
 
-    // Address is in User.location
+    @ManyToOne
+    @JoinColumn(name = "location_id")
+    private Location location;
 
     private String subscriptionTier; // FREE, PREMIUM
 
