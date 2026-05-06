@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-02-09T00:19:08+0300",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.9 (Oracle Corporation)"
+    date = "2026-05-06T14:54:06+0300",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.46.0.v20260407-0427, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
 public class UserMapperImpl implements UserMapper {
@@ -22,9 +22,9 @@ public class UserMapperImpl implements UserMapper {
 
         User user = new User();
 
-        user.setPhoneNumber( dto.getPhoneNumber() );
         user.setEmail( dto.getEmail() );
         user.setFaydaId( dto.getFaydaId() );
+        user.setPhoneNumber( dto.getPhoneNumber() );
 
         return user;
     }
@@ -38,12 +38,12 @@ public class UserMapperImpl implements UserMapper {
         UserResponseDto userResponseDto = new UserResponseDto();
 
         userResponseDto.setRoles( mapRoles( entity.getRoles() ) );
+        userResponseDto.setCreatedAt( entity.getCreatedAt() );
+        userResponseDto.setEmail( entity.getEmail() );
+        userResponseDto.setEnabled( entity.isEnabled() );
+        userResponseDto.setFaydaId( entity.getFaydaId() );
         userResponseDto.setId( entity.getId() );
         userResponseDto.setPhoneNumber( entity.getPhoneNumber() );
-        userResponseDto.setEmail( entity.getEmail() );
-        userResponseDto.setFaydaId( entity.getFaydaId() );
-        userResponseDto.setEnabled( entity.isEnabled() );
-        userResponseDto.setCreatedAt( entity.getCreatedAt() );
         userResponseDto.setUpdatedAt( entity.getUpdatedAt() );
 
         return userResponseDto;

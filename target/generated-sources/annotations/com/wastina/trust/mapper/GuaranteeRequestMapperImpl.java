@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-02-09T00:19:08+0300",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.9 (Oracle Corporation)"
+    date = "2026-05-06T14:54:06+0300",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.46.0.v20260407-0427, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
 public class GuaranteeRequestMapperImpl implements GuaranteeRequestMapper {
@@ -38,13 +38,13 @@ public class GuaranteeRequestMapperImpl implements GuaranteeRequestMapper {
         GuaranteeResponseDto guaranteeResponseDto = new GuaranteeResponseDto();
 
         guaranteeResponseDto.setRequesterId( entityRequesterId( entity ) );
-        guaranteeResponseDto.setId( entity.getId() );
+        guaranteeResponseDto.setCreatedAt( entity.getCreatedAt() );
+        guaranteeResponseDto.setExpiresAt( entity.getExpiresAt() );
         guaranteeResponseDto.setGuarantorPhone( entity.getGuarantorPhone() );
+        guaranteeResponseDto.setId( entity.getId() );
         if ( entity.getStatus() != null ) {
             guaranteeResponseDto.setStatus( entity.getStatus().name() );
         }
-        guaranteeResponseDto.setCreatedAt( entity.getCreatedAt() );
-        guaranteeResponseDto.setExpiresAt( entity.getExpiresAt() );
 
         return guaranteeResponseDto;
     }
