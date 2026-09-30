@@ -1,0 +1,54 @@
+name: Wastina CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: wastina-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Test
+        run: mvn -B -q clean test -Dmaven.compiler.useIncrementalCompilation=false
+
+      - name: Package
+        run: mvn -B -q -DskipTests package
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+
+      - name: Build container
+        run: docker build --tag wastina:${{ github.sha }} .
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: wastina:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: wastina-sbom-${{ github.sha }}
+          path: sbom.json

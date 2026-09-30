@@ -17,4 +17,14 @@ public class TrustScoreDto {
     private String evidenceStatus;
     private String policyVersion;
     private int evidenceCount;
+
+    public TrustScoreDto(int totalScore, String workerId, List<String> scoreBreakdown) {
+        this.totalScore = totalScore;
+        this.workerId = workerId;
+        this.scoreBreakdown = scoreBreakdown;
+        this.confidence = "MEDIUM";
+        this.evidenceStatus = "VERIFIED";
+        this.policyVersion = "v1";
+        this.evidenceCount = scoreBreakdown == null ? 0 : scoreBreakdown.size();
+    }
 }

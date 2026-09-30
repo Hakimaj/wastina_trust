@@ -65,7 +65,7 @@ public class TrustEngineService {
         score = Math.min(score, 100);
         breakdown.add(0, "Total Score Calculated: " + score);
 
-        return new TrustScoreDto(score, workerId.toString(), breakdown);
+        return new TrustScoreDto(score, workerId.toString(), breakdown, "MEDIUM", "VERIFIED", "v1", Math.max(1, breakdown.size()));
     }
 
     // Utility to sync from MySQL to Neo4j
