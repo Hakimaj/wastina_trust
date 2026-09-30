@@ -13,4 +13,8 @@ public class TrustScoreDto {
     private int totalScore;
     private String workerId;
     private List<String> scoreBreakdown;
+    private String confidence;
+    private String evidenceStatus;
+    private String policyVersion;
+    private int evidenceCount;
 }

@@ -1,7 +1,7 @@
 package com.wastina.trust.controller;
 
 import com.wastina.trust.dto.TrustScoreDto;
-import com.wastina.trust.service.TrustEngineService;
+import com.wastina.trust.service.TrustScoreService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,14 +17,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TrustEngineController {
 
-    private final TrustEngineService trustEngineService;
+    private final TrustScoreService trustScoreService;
 
     // This endpoint can be called by Employers to check a worker's score
     @GetMapping("/{workerId}/score")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TrustScoreDto> getTrustScore(@PathVariable UUID workerId) {
         try {
-            TrustScoreDto trustScore = trustEngineService.calculateTrustScore(workerId);
+            TrustScoreDto trustScore = trustScoreService.recalculate(workerId, null);
             return ResponseEntity.ok(trustScore);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

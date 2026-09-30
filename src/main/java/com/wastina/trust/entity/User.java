@@ -7,6 +7,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,11 +30,20 @@ public class User {
     private String phoneNumber;
 
     @Column(nullable = false)
-    private String passwordHash;
-
     private String email;
 
-    private String faydaId;
+    @Column(name = "identity_subject", unique = true)
+    private String identitySubject;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private AccountStatus accountStatus = AccountStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private IdentityStatus identityStatus = IdentityStatus.UNVERIFIED;
+
+    private Instant verifiedAt;
 
     private boolean isEnabled = true;
 
@@ -48,8 +58,7 @@ public class User {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    public User(String phoneNumber, String passwordHash) {
+    public User(String phoneNumber) {
         this.phoneNumber = phoneNumber;
-        this.passwordHash = passwordHash;
     }
 }
