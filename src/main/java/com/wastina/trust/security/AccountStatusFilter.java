@@ -26,6 +26,11 @@ public class AccountStatusFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
+        if ("POST".equals(request.getMethod()) && "/api/v1/me/provision".equals(request.getRequestURI())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
             boolean active = userRepository.findByIdentitySubject(jwt.getSubject())
