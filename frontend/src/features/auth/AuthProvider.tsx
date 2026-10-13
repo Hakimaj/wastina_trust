@@ -2,7 +2,7 @@ import Keycloak from 'keycloak-js'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { configureApiAuth } from '../../api'
 import { ApiError } from '../../api/errors'
-import { authConfig } from './authConfig'
+import { getAuthConfig } from './authConfig'
 import { AuthContext, type AuthContextValue } from './AuthContext'
 import { broadcastLogout, subscribeToAuthEvents } from './authEvents'
 import {
@@ -23,6 +23,7 @@ import { saveReturnPath } from './redirects'
 import {
   classifyBootstrapError,
   getCurrentAccount,
+  getCurrentOrganizations,
   normalizeIdentity,
   provisionCurrentAccount,
 } from './sessionBootstrap'
@@ -86,8 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }))
 
     try {
-      const account = await getCurrentAccount()
-      const organizations: OrganizationMembership[] = []
+      const [account, organizations] = await Promise.all([
+        getCurrentAccount(),
+        getCurrentOrganizations(),
+      ])
       const roles = account.roles
       setSession({
         status:
@@ -160,12 +163,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [expireSession])
 
   useEffect(() => {
+    const authCfg = getAuthConfig()
+    if (!authCfg) return // Should not render in dev-JWT mode
+
     const keycloak =
       keycloakRef.current ??
       new Keycloak({
-        url: authConfig.issuer.replace(/\/realms\/[^/]+$/, ''),
-        realm: authConfig.realm,
-        clientId: authConfig.clientId,
+        url: authCfg.issuer.replace(/\/realms\/[^/]+$/, ''),
+        realm: authCfg.realm,
+        clientId: authCfg.clientId,
       })
     keycloakRef.current = keycloak
     configureApiAuth({
@@ -190,10 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!initializationPromiseRef.current) {
       initializationPromiseRef.current = keycloak.init({
         onLoad: 'check-sso',
-        pkceMethod: authConfig.pkceMethod,
-        checkLoginIframe: authConfig.checkLoginIframe,
-        redirectUri: authConfig.redirectUri,
-        scope: authConfig.scope,
+        pkceMethod: authCfg.pkceMethod,
+        checkLoginIframe: authCfg.checkLoginIframe,
+        redirectUri: authCfg.redirectUri,
+        scope: authCfg.scope,
       })
     }
 
@@ -216,23 +222,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue>(() => {
+    const authCfg = getAuthConfig()
+    return {
       ...session,
       login: async (returnPath) => {
         saveReturnPath(
           returnPath ?? `${window.location.pathname}${window.location.search}`,
         )
         await keycloakRef.current?.login({
-          redirectUri: authConfig.redirectUri,
-          scope: authConfig.scope,
+          redirectUri: authCfg?.redirectUri,
+          scope: authCfg?.scope,
         })
       },
       register: async (returnPath) => {
         saveReturnPath(returnPath ?? '/app')
         await keycloakRef.current?.register({
-          redirectUri: authConfig.redirectUri,
-          scope: authConfig.scope,
+          redirectUri: authCfg?.redirectUri,
+          scope: authCfg?.scope,
         })
       },
       logout: async () => {
@@ -240,11 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession('unauthenticated')
         try {
           await keycloakRef.current?.logout({
-            redirectUri: authConfig.postLogoutRedirectUri,
+            redirectUri: authCfg?.postLogoutRedirectUri,
           })
         } catch {
           keycloakRef.current?.clearToken()
-          window.location.assign(authConfig.postLogoutRedirectUri)
+          if (authCfg?.postLogoutRedirectUri) window.location.assign(authCfg.postLogoutRedirectUri)
         }
       },
       refreshSession: async () => {
@@ -268,8 +275,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null,
         }))
         try {
-          const account = await provisionCurrentAccount({ email, phoneNumber })
-          const organizations: OrganizationMembership[] = []
+          const [account, organizations] = await Promise.all([
+            provisionCurrentAccount({ email, phoneNumber }),
+            getCurrentOrganizations(),
+          ])
           setSession({
             status:
               account.accountStatus === 'ACTIVE'
@@ -288,19 +297,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession((current) => ({
             ...current,
             status: 'bootstrap-error',
-            error:
-              error instanceof ApiError
-                ? error.message
-                : 'Account provisioning failed.',
+            error: error instanceof Error ? error.message : 'Account provisioning failed.',
           }))
           throw error
         }
       },
       setActiveRole: (role) => {
         setSession((current) =>
-          current.roles.includes(role)
-            ? { ...current, activeRole: role }
-            : current,
+          current.roles.includes(role) ? { ...current, activeRole: role } : current,
         )
       },
       setActiveOrganization: (organization) => {
@@ -316,9 +320,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasAllRoles: (roles) => hasAllRoles(session, roles),
       hasPermission: (permission) => hasPermission(session, permission),
       hasAnyPermission: (permissions) => hasAnyPermission(session, permissions),
-    }),
-    [bootstrap, clearSession, refreshAccessToken, session],
-  )
+    }
+  }, [bootstrap, clearSession, refreshAccessToken, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -7,6 +7,8 @@ export type DialogProps = {
   closeLabel?: string
   onClose: () => void
   children: ReactNode
+  /** Action bar, normally rendered after the body. */
+  footer?: ReactNode
   className?: string
 }
 
@@ -20,6 +22,7 @@ export function Dialog({
   closeLabel = 'Close',
   onClose,
   children,
+  footer,
   className = '',
 }: DialogProps) {
   const titleId = useId()
@@ -97,6 +100,7 @@ export function Dialog({
           </button>
         </header>
         <div className="dialog__body">{children}</div>
+        {footer ? <footer className="dialog__footer">{footer}</footer> : null}
       </section>
     </div>
   )

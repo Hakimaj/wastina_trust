@@ -1,6 +1,8 @@
 export { AuthProvider } from './AuthProvider'
 export { AuthContext, useAuth } from './AuthContext'
 export {
+  MembershipGuard,
+  OrganizationMembershipGuard,
   PermissionGuard,
   ProtectedRoute,
   ProvisioningRoute,
@@ -16,11 +18,22 @@ export {
   hasPermission,
   hasRole,
 } from './authorization'
+export {
+  getCurrentAccount,
+  getCurrentOrganizations,
+  normalizeAccount,
+  normalizeIdentity,
+  normalizeOrganizations,
+  provisionCurrentAccount,
+  updateCurrentAccount,
+} from './sessionBootstrap'
+export { isDevelopmentSession } from './authTypes'
 export type { AuthContextValue } from './AuthContext'
 export type {
   AuthSession,
   AuthStatus,
   BackendRole,
+  BootstrapErrorKind,
   OrganizationMembership,
   OidcIdentity,
   UserRole,

@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AppShell } from '../components/layout/AppShell'
 import { I18nProvider } from '../i18n/I18nProvider'
@@ -22,6 +22,13 @@ const authValue: AuthContextValue = {
     accountStatus: 'ACTIVE',
     identityStatus: 'VERIFIED',
     roles: ['ROLE_WORKER', 'ROLE_EMPLOYER'],
+    email: 'user@example.com',
+    phoneNumber: null,
+    identitySubject: 'subject-1',
+    verifiedAt: null,
+    createdAt: null,
+    updatedAt: null,
+    enabled: true,
   },
   roles: ['ROLE_WORKER', 'ROLE_EMPLOYER'],
   organizations: [],
@@ -44,10 +51,41 @@ const authValue: AuthContextValue = {
 }
 
 describe('Task 3 shell foundation', () => {
-  it('filters the placeholder navigation by the selected role', () => {
-    const employerNavigation = getVisibleNavigationItems('ROLE_EMPLOYER')
-    expect(employerNavigation.some((item) => item.id === 'employer-workspace')).toBe(true)
-    expect(employerNavigation.some((item) => item.id === 'admin-workspace')).toBe(false)
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    document.documentElement.lang = ''
+  })
+
+  it('shows only navigation entries backed by registered routes', () => {
+    // `trust` is read-only and available to every account; the verification
+    // inbox requires a membership that can verify employment, which this
+    // account does not have.
+    const employerNavigation = getVisibleNavigationItems(['ROLE_EMPLOYER'])
+    expect(employerNavigation.map((item) => item.id)).toEqual([
+      'dashboard', 'profile', 'identity', 'employment', 'organizations', 'trust',
+    ])
+
+    const verifierNavigation = getVisibleNavigationItems(
+      ['ROLE_EMPLOYER'],
+      [
+        {
+          id: 'm1',
+          organizationId: 'org-1',
+          name: 'Employer Org',
+          legalName: null,
+          organizationStatus: 'VERIFIED',
+          role: 'VERIFIER',
+          status: 'ACTIVE',
+          joinedAt: null,
+          endedAt: null,
+          canVerifyEmployment: true,
+          canManageMemberships: false,
+        },
+      ],
+    )
+    expect(verifierNavigation.map((item) => item.id)).toContain('verifications')
   })
 
   it('renders the app shell with the shared Wastina header and nav', () => {
@@ -65,7 +103,8 @@ describe('Task 3 shell foundation', () => {
 
     expect(screen.getByRole('banner')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument()
-    expect(screen.getByText(/wastina/i)).toBeInTheDocument()
+    // The brand mark "W" is hidden from screen readers; the app name is in the brand text
+    expect(screen.getByText('Wastina')).toBeInTheDocument()
   })
 
   it('updates the html language when the locale changes', async () => {

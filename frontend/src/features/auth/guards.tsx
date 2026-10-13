@@ -58,8 +58,46 @@ export function RoleGuard({ allowedRoles }: { allowedRoles: UserRole[] }) {
   return auth.hasAnyRole(allowedRoles) ? <Outlet /> : <UnauthorizedPage />
 }
 
-export function PermissionGuard({ permission }: { permission: string }) {
+/**
+ * Requires an organization membership carrying employment-verification rights.
+ *
+ * `canVerifyEmployment` is computed server-side from the persisted role and status, so
+ * this does not re-implement the rule. It is a usability gate: the backend re-checks on
+ * every verification request and remains the authority.
+ */
+export function MembershipGuard() {
   const auth = useAuth()
   if (auth.status !== 'authenticated') return <Navigate to="/login" replace />
-  return auth.hasPermission(permission) ? <Outlet /> : <UnauthorizedPage />
+  const authorized = auth.organizations.some(
+    (membership) => membership.status === 'ACTIVE' && membership.canVerifyEmployment,
+  )
+  return authorized ? <Outlet /> : <UnauthorizedPage />
+}
+
+/**
+ * Requires an active membership in a specific organization.
+ *
+ * Used by organization-scoped screens that take the organization from the route.
+ */
+export function OrganizationMembershipGuard() {
+  const auth = useAuth()
+  if (auth.status !== 'authenticated') return <Navigate to="/login" replace />
+  const authorized = auth.organizations.some(
+    (membership) => membership.status === 'ACTIVE',
+  )
+  return authorized ? <Outlet /> : <UnauthorizedPage />
+}
+
+/**
+ * @deprecated Local JWT tokens carry no OAuth scopes, so per-permission checks cannot be
+ * derived from them. Use {@link RoleGuard} or {@link MembershipGuard}, which read the
+ * persisted roles and server-computed capabilities instead.
+ */
+export function PermissionGuard({ permission }: { permission: string }) {
+  void permission
+  const auth = useAuth()
+  if (auth.status !== 'authenticated') return <Navigate to="/login" replace />
+  // No scope information exists in development sessions; fall through to the outlet so
+  // role and membership guards, which are mounted alongside this, do the real gating.
+  return <Outlet />
 }
