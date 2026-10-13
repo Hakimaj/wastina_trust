@@ -1,0 +1,9 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "automatic",
+    "code-runner.runInTerminal": true,
+    "code-runner.fileDirectoryAsCwd": false,
+    "code-runner.executorMap": {
+        "java": "mvn spring-boot:run -Dspring-boot.run.profiles=local"
+    }
+}

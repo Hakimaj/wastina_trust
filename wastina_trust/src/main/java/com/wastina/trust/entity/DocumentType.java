@@ -1,0 +1,13 @@
+package com.wastina.trust.entity;
+
+public enum DocumentType {
+    IDENTITY_DOCUMENT,
+    GUARANTEE_CONTRACT,
+    GUARANTEE_AMENDMENT,
+    EMPLOYMENT_EVIDENCE,
+    DISPUTE_EVIDENCE,
+    PAYMENT_RECEIPT,
+    REPORT,
+    SIGNED_ARTIFACT,
+    OTHER
+}

@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run TrustProtocolApplication (local)",
+            "request": "launch",
+            "mainClass": "com.wastina.trust.TrustProtocolApplication",
+            "projectName": "trust-protocol",
+            "vmArgs": "-Dspring.profiles.active=local"
+        }
+    ]
+}
