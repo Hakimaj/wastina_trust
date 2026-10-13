@@ -12,14 +12,13 @@ import com.wastina.trust.repository.ProfessionRepository;
 import com.wastina.trust.repository.UserRepository;
 import com.wastina.trust.repository.WorkerProfileRepository;
 import com.wastina.trust.service.WorkerProfileService;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@RequiredArgsConstructor
 public class WorkerProfileServiceImpl implements WorkerProfileService {
 
     private final WorkerProfileRepository workerProfileRepository;
@@ -28,26 +27,38 @@ public class WorkerProfileServiceImpl implements WorkerProfileService {
     private final LocationRepository locationRepository;
     private final WorkerProfileMapper workerProfileMapper;
 
+    public WorkerProfileServiceImpl(WorkerProfileRepository workerProfileRepository,
+                                    UserRepository userRepository,
+                                    ProfessionRepository professionRepository,
+                                    LocationRepository locationRepository,
+                                    WorkerProfileMapper workerProfileMapper) {
+        this.workerProfileRepository = workerProfileRepository;
+        this.userRepository = userRepository;
+        this.professionRepository = professionRepository;
+        this.locationRepository = locationRepository;
+        this.workerProfileMapper = workerProfileMapper;
+    }
+
     @Override
     @Transactional
     public WorkerProfileResponseDto createOrUpdateProfile(UUID userId, WorkerProfileRequestDto request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
         WorkerProfile profile = workerProfileRepository.findById(userId)
-                .orElse(new WorkerProfile(user));
+                .orElseGet(() -> new WorkerProfile(user));
 
         profile.setAvailable(request.isAvailable());
 
-        if (request.getProfessionName() != null) {
-            Profession profession = professionRepository.findByName(request.getProfessionName())
-                    .orElseGet(() -> professionRepository.save(new Profession(request.getProfessionName())));
+        if (request.professionName() != null) {
+            Profession profession = professionRepository.findByName(request.professionName())
+                    .orElseGet(() -> professionRepository.save(new Profession(request.professionName())));
             profile.setProfession(profession);
         }
 
-        if (request.getLocationName() != null) {
-            Location location = locationRepository.findByName(request.getLocationName())
-                    .orElseGet(() -> locationRepository.save(new Location(request.getLocationName())));
+        if (request.locationName() != null) {
+            Location location = locationRepository.findByName(request.locationName())
+                    .orElseGet(() -> locationRepository.save(new Location(request.locationName())));
             profile.setLocation(location);
         }
 
@@ -59,7 +70,7 @@ public class WorkerProfileServiceImpl implements WorkerProfileService {
     @Transactional(readOnly = true)
     public WorkerProfileResponseDto getProfileByUserId(UUID userId) {
         WorkerProfile profile = workerProfileRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Worker profile not found for user: " + userId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Worker profile not found."));
         return workerProfileMapper.toDto(profile);
     }
 
@@ -67,7 +78,7 @@ public class WorkerProfileServiceImpl implements WorkerProfileService {
     @Transactional
     public void deleteProfile(UUID userId) {
         if (!workerProfileRepository.existsById(userId)) {
-            throw new RuntimeException("Worker profile not found for user: " + userId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Worker profile not found.");
         }
         workerProfileRepository.deleteById(userId);
     }

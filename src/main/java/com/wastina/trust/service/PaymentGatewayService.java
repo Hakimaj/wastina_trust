@@ -49,10 +49,33 @@ public class PaymentGatewayService {
         return intentRepository.save(intent);
     }
 
+    /**
+     * Initializes a transaction, requiring the caller to be the payer of the intent.
+     *
+     * <p>Previously this accepted only an intent id, so any authenticated user could drive another
+     * user's payment forward.
+     */
+    @Transactional
+    public PaymentTransaction initializeTransactionForPayer(Long intentId, UUID payerId) {
+        PaymentIntent intent = intentRepository.findById(intentId)
+                .orElseThrow(() -> new com.wastina.trust.controller.EntityNotFoundException(
+                        "Payment intent was not found: " + intentId));
+
+        if (intent.getPayer() == null || !intent.getPayer().getId().equals(payerId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You are not the payer of this payment intent.");
+        }
+        return initializeTransaction(intent);
+    }
+
     @Transactional
     public PaymentTransaction initializeTransaction(Long intentId) {
         PaymentIntent intent = intentRepository.findById(intentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment intent not found"));
+        return initializeTransaction(intent);
+    }
+
+    private PaymentTransaction initializeTransaction(PaymentIntent intent) {
         PaymentProviderGateway provider = providers.stream().filter(candidate -> candidate.provider() == intent.getProvider())
                 .findFirst().orElseThrow(() -> new IllegalStateException("Payment provider is not configured"));
         PaymentProviderGateway.ProviderPayment providerPayment = provider.create(intent);
@@ -72,10 +95,29 @@ public class PaymentGatewayService {
         return transactionRepository.save(transaction);
     }
 
+    /** Verifies a transaction, requiring the caller to be the payer of its intent. */
+    @Transactional
+    public PaymentTransaction verifyTransactionForPayer(UUID transactionId, UUID payerId) {
+        PaymentTransaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new com.wastina.trust.controller.EntityNotFoundException(
+                        "Payment transaction was not found: " + transactionId));
+
+        PaymentIntent intent = transaction.getPaymentIntent();
+        if (intent == null || intent.getPayer() == null || !intent.getPayer().getId().equals(payerId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You are not the payer of this payment transaction.");
+        }
+        return verifyTransaction(transaction);
+    }
+
     @Transactional
     public PaymentTransaction verifyTransaction(UUID transactionId) {
         PaymentTransaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment transaction not found"));
+        return verifyTransaction(transaction);
+    }
+
+    private PaymentTransaction verifyTransaction(PaymentTransaction transaction) {
         PaymentProviderGateway provider = providers.stream().filter(candidate -> candidate.provider() == transaction.getProvider())
                 .findFirst().orElseThrow(() -> new IllegalStateException("Payment provider is not configured"));
         PaymentProviderGateway.ProviderPayment providerPayment = provider.verify(transaction.getProviderTransactionId());

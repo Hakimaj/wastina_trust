@@ -1,79 +1,103 @@
 package com.wastina.trust.controller;
 
-import com.wastina.trust.entity.Guarantee;
-import com.wastina.trust.entity.GuaranteeStatus;
-import com.wastina.trust.entity.GuaranteeType;
+import com.wastina.trust.dto.GuaranteeCreateRequest;
+import com.wastina.trust.dto.GuaranteeView;
 import com.wastina.trust.entity.User;
-import com.wastina.trust.repository.UserRepository;
-import com.wastina.trust.service.ContractIntegrityService;
-import com.wastina.trust.service.GuaranteeCapacityService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
+import com.wastina.trust.security.CurrentUserResolver;
+import com.wastina.trust.service.GuaranteeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Digital guarantees.
+ *
+ * <p>Changes from the audited original:
+ * <ul>
+ *   <li>The guarantee is actually persisted and returned with {@code 201 Created}. Previously the
+ *       controller built an entity, discarded it and returned {@code 200 OK} with a fabricated
+ *       identifier.</li>
+ *   <li>The principal is the authenticated caller. The previous endpoint read {@code principalId}
+ *       from the body, so any user could create a guarantee in another party's name.</li>
+ *   <li>Reads are restricted to the parties of the guarantee, and listing is scoped to the caller.</li>
+ * </ul>
+ */
 @RestController
-@RequestMapping("/api/v1")
-@RequiredArgsConstructor
+@RequestMapping("/api/v1/guarantees")
+@Tag(name = "Guarantees", description = "Digital guarantees")
 public class GuaranteeController {
-    private final UserRepository userRepository;
-    private final GuaranteeCapacityService guaranteeCapacityService;
-    private final ContractIntegrityService contractIntegrityService;
 
-    @PostMapping("/guarantees")
-    public ResponseEntity<Map<String, Object>> createGuarantee(@RequestBody Map<String, Object> request) {
-        UUID principalId = UUID.fromString((String) request.get("principalId"));
-        UUID guarantorId = UUID.fromString((String) request.get("guarantorId"));
-        UUID beneficiaryId = request.get("beneficiaryId") == null ? null : UUID.fromString((String) request.get("beneficiaryId"));
+    private final GuaranteeService guaranteeService;
+    private final CurrentUserResolver currentUserResolver;
 
-        User principal = userRepository.findById(principalId).orElseThrow(() -> new IllegalArgumentException("Principal not found"));
-        User guarantor = userRepository.findById(guarantorId).orElseThrow(() -> new IllegalArgumentException("Guarantor not found"));
-        User beneficiary = beneficiaryId == null ? null : userRepository.findById(beneficiaryId).orElseThrow(() -> new IllegalArgumentException("Beneficiary not found"));
+    public GuaranteeController(GuaranteeService guaranteeService, CurrentUserResolver currentUserResolver) {
+        this.guaranteeService = guaranteeService;
+        this.currentUserResolver = currentUserResolver;
+    }
 
-        BigDecimal amount = new BigDecimal(String.valueOf(request.getOrDefault("amount", "0.00")));
-        String currency = String.valueOf(request.getOrDefault("currency", "ETB"));
-        Guarantee guarantee = new Guarantee();
-        guarantee.setPublicReference("WST-" + System.currentTimeMillis());
-        guarantee.setType(GuaranteeType.valueOf(String.valueOf(request.getOrDefault("type", GuaranteeType.OTHER.name()))));
-        guarantee.setStatus(GuaranteeStatus.PENDING_ACCEPTANCE);
-        guarantee.setPrincipal(principal);
-        guarantee.setGuarantor(guarantor);
-        guarantee.setBeneficiary(beneficiary);
-        guarantee.setAmount(amount);
-        guarantee.setCurrency(currency);
-        guarantee.setGuaranteedAmount(amount);
-        guarantee.setOutstandingLiability(amount);
-        guarantee.setPurpose(String.valueOf(request.getOrDefault("purpose", "Guarantee")));
-        guarantee.setDescription(String.valueOf(request.getOrDefault("description", "")));
-        guarantee.setExpiresAt(Instant.now().plusSeconds(86400L * 30));
+    @PostMapping
+    @Operation(summary = "Create a guarantee; the caller is always the principal")
+    public ResponseEntity<GuaranteeView> createGuarantee(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody GuaranteeCreateRequest request) {
+        User principal = currentUserResolver.requireUser(jwt);
+        var guarantee = guaranteeService.createGuarantee(principal, request);
+        return ResponseEntity
+                .created(URI.create("/api/v1/guarantees/" + guarantee.getPublicReference()))
+                .body(GuaranteeView.from(guarantee));
+    }
 
-        var capacity = guaranteeCapacityService.evaluate(guarantor, java.util.List.of(), amount);
-        if (!capacity.allowed()) {
-            throw new IllegalStateException("Guarantor capacity exceeded");
-        }
+    @GetMapping
+    @Operation(summary = "List the caller's guarantees")
+    public List<GuaranteeView> listMyGuarantees(@AuthenticationPrincipal Jwt jwt) {
+        User user = currentUserResolver.requireUser(jwt);
+        return guaranteeService.listForUser(user.getId()).stream()
+                .map(GuaranteeView::from)
+                .toList();
+    }
 
-        Map<String, Object> contract = new HashMap<>();
-        contract.put("principalId", principal.getId().toString());
-        contract.put("guarantorId", guarantor.getId().toString());
-        contract.put("beneficiaryId", beneficiary == null ? null : beneficiary.getId().toString());
-        contract.put("amount", amount.toPlainString());
-        contract.put("currency", currency);
-        contract.put("purpose", guarantee.getPurpose());
-        contract.put("status", guarantee.getStatus().name());
-        contract.put("termsVersion", guarantee.getTermsVersion());
-        contract.put("contractVersion", guarantee.getContractVersion());
-        guarantee.setContractHash(contractIntegrityService.sha256Hex(contractIntegrityService.canonicalize(contract)));
+    @GetMapping("/{publicReference}")
+    @Operation(summary = "Read a guarantee the caller is a party to")
+    public GuaranteeView getGuarantee(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String publicReference) {
+        User user = currentUserResolver.requireUser(jwt);
+        return GuaranteeView.from(guaranteeService.getForUser(publicReference, user));
+    }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("guaranteeId", guarantee.getPublicReference());
-        response.put("status", guarantee.getStatus().name());
-        response.put("contractHash", guarantee.getContractHash());
-        response.put("capacityAllowed", capacity.allowed());
-        return ResponseEntity.ok(response);
+    @PostMapping("/{publicReference}/accept")
+    @Operation(summary = "Accept a pending guarantee (guarantor only)")
+    public GuaranteeView accept(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String publicReference) {
+        User user = currentUserResolver.requireUser(jwt);
+        return GuaranteeView.from(
+                guaranteeService.acceptGuarantee(publicReference, user));
+    }
+
+    @PostMapping("/{publicReference}/reject")
+    @Operation(summary = "Reject a pending guarantee (guarantor only)")
+    public GuaranteeView reject(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String publicReference,
+            @RequestBody(required = false) RejectRequest request) {
+        User user = currentUserResolver.requireUser(jwt);
+        return GuaranteeView.from(guaranteeService.rejectGuarantee(publicReference, user,
+                request == null ? null : request.reason()));
+    }
+
+    public record RejectRequest(String reason) {
     }
 }

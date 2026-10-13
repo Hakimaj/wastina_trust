@@ -10,14 +10,13 @@ import com.wastina.trust.repository.EmployerProfileRepository;
 import com.wastina.trust.repository.LocationRepository;
 import com.wastina.trust.repository.UserRepository;
 import com.wastina.trust.service.EmployerProfileService;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@RequiredArgsConstructor
 public class EmployerProfileServiceImpl implements EmployerProfileService {
 
     private final EmployerProfileRepository employerProfileRepository;
@@ -25,21 +24,31 @@ public class EmployerProfileServiceImpl implements EmployerProfileService {
     private final LocationRepository locationRepository;
     private final EmployerProfileMapper employerProfileMapper;
 
+    public EmployerProfileServiceImpl(EmployerProfileRepository employerProfileRepository,
+                                     UserRepository userRepository,
+                                     LocationRepository locationRepository,
+                                     EmployerProfileMapper employerProfileMapper) {
+        this.employerProfileRepository = employerProfileRepository;
+        this.userRepository = userRepository;
+        this.locationRepository = locationRepository;
+        this.employerProfileMapper = employerProfileMapper;
+    }
+
     @Override
     @Transactional
     public EmployerProfileResponseDto createOrUpdateProfile(UUID userId, EmployerProfileRequestDto request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
         EmployerProfile profile = employerProfileRepository.findById(userId)
-                .orElse(new EmployerProfile(user));
+                .orElseGet(() -> new EmployerProfile(user));
 
-        profile.setCompanyName(request.getCompanyName());
-        profile.setSubscriptionTier(request.getSubscriptionTier());
+        profile.setCompanyName(request.companyName());
+        profile.setSubscriptionTier(normalizeTier(request.subscriptionTier()));
 
-        if (request.getLocationName() != null) {
-            Location location = locationRepository.findByName(request.getLocationName())
-                    .orElseGet(() -> locationRepository.save(new Location(request.getLocationName())));
+        if (request.locationName() != null) {
+            Location location = locationRepository.findByName(request.locationName())
+                    .orElseGet(() -> locationRepository.save(new Location(request.locationName())));
             profile.setLocation(location);
         }
 
@@ -51,7 +60,7 @@ public class EmployerProfileServiceImpl implements EmployerProfileService {
     @Transactional(readOnly = true)
     public EmployerProfileResponseDto getProfileByUserId(UUID userId) {
         EmployerProfile profile = employerProfileRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Employer profile not found for user: " + userId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employer profile not found."));
         return employerProfileMapper.toDto(profile);
     }
 
@@ -59,8 +68,12 @@ public class EmployerProfileServiceImpl implements EmployerProfileService {
     @Transactional
     public void deleteProfile(UUID userId) {
         if (!employerProfileRepository.existsById(userId)) {
-            throw new RuntimeException("Employer profile not found for user: " + userId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employer profile not found.");
         }
         employerProfileRepository.deleteById(userId);
+    }
+
+    private String normalizeTier(String tier) {
+        return tier == null ? null : tier.trim().toUpperCase(java.util.Locale.ROOT);
     }
 }

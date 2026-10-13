@@ -28,6 +28,10 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Column(length = 6)
+    private String currency = "ETB";
+
+
     private String purpose; // LOOKUP, SUBSCRIPTION, etc.
 
     @Enumerated(EnumType.STRING)

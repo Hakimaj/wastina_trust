@@ -27,7 +27,7 @@ public class DocumentUploadSession {
     private long allowedSize;
 
     @Column(name = "allowed_mime_types", nullable = false, length = 300)
-    private String allowedMimeTypes = "application/pdf,image/jpeg,image/png";
+    private String allowedMimeTypes = "application/pdf,image/jpeg,image/png,text/plain";
 
     @Column(name = "upload_object_key", nullable = false, unique = true, length = 240)
     private String uploadObjectKey;

@@ -88,7 +88,9 @@ public class EmploymentVerificationRequest {
     }
 
     public void markInReview() {
-        transitionTo(EmploymentVerificationRequestStatus.IN_REVIEW, EmploymentVerificationRequestStatus.VIEWED, EmploymentVerificationRequestStatus.DELIVERED);
+        transitionTo(EmploymentVerificationRequestStatus.IN_REVIEW, EmploymentVerificationRequestStatus.CREATED,
+            EmploymentVerificationRequestStatus.SENT, EmploymentVerificationRequestStatus.VIEWED,
+            EmploymentVerificationRequestStatus.DELIVERED);
     }
 
     public void markVerified() {
@@ -127,6 +129,8 @@ public class EmploymentVerificationRequest {
                 return;
             }
         }
-        throw new IllegalStateException("Invalid state transition from " + this.status + " to " + newStatus + ".");
+        throw new com.wastina.trust.controller.BusinessRuleViolationException(
+                    com.wastina.trust.controller.ApiErrorCodes.INVALID_STATE_TRANSITION,
+                    "Invalid state transition from " + this.status + " to " + newStatus + ".");
     }
 }

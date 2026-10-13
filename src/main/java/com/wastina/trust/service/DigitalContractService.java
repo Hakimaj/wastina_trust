@@ -2,15 +2,22 @@ package com.wastina.trust.service;
 
 import com.wastina.trust.dto.DigitalContractRequestDto;
 import com.wastina.trust.dto.DigitalContractResponseDto;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+/**
+ * Digital contract access.
+ *
+ * <p>All read operations are scoped to a user, and creation derives the worker from the
+ * authenticated caller. There is no unrestricted "list everything" operation.
+ */
 public interface DigitalContractService {
-    DigitalContractResponseDto createContract(DigitalContractRequestDto request);
 
-    List<DigitalContractResponseDto> getAllContracts();
+    DigitalContractResponseDto createContractForWorker(UUID workerId, DigitalContractRequestDto request);
 
-    DigitalContractResponseDto getContractById(Long id);
+    Page<DigitalContractResponseDto> listContractsInvolvingUser(UUID userId, Pageable pageable);
 
-    List<DigitalContractResponseDto> getContractsByWorkerId(UUID workerId);
+    /** Returns {@code 404} when the contract does not exist or the user is not a party to it. */
+    DigitalContractResponseDto getContractForUser(Long id, UUID userId);
 }

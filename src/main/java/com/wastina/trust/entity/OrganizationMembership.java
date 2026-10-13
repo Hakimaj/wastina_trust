@@ -59,4 +59,14 @@ public class OrganizationMembership {
                 || role == OrganizationMembershipRole.MANAGER
                 || role == OrganizationMembershipRole.VERIFIER);
     }
+
+    /**
+     * Whether this member may administer the membership list: create invitations and change or
+     * suspend other members. Deliberately narrower than {@link #canVerifyEmployment()}.
+     */
+    public boolean canManageMemberships() {
+        return status == OrganizationMembershipStatus.ACTIVE
+                && (role == OrganizationMembershipRole.OWNER
+                || role == OrganizationMembershipRole.HR_ADMIN);
+    }
 }
